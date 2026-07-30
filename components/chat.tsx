@@ -11,7 +11,7 @@ export function Chat() {
   const [message, setMessage] = useState("")
   const [messages, setMessages] = useState<Message[]>([
     {
-      text: "नमस्ते! मैं Flash Chat हूँ। अपना सवाल लिखो।",
+      text: "Hello! मैं Flash Chat हूँ।",
       sender: "ai",
     },
   ])
@@ -31,7 +31,7 @@ export function Chat() {
     setLoading(true)
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/app/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,7 +70,7 @@ export function Chat() {
       </h1>
 
       <p className="mb-4">
-        अपना सवाल लिखो और बातचीत शुरू करो
+        अपने सवाल लिखो और बातचीत शुरू करो
       </p>
 
       <div className="min-h-[400px] rounded-xl border p-4">
