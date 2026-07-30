@@ -11,7 +11,7 @@ export function Chat() {
   const [message, setMessage] = useState("")
   const [messages, setMessages] = useState<Message[]>([
     {
-      text: "Hello! मैं Flash Chat हूँ।",
+      text: "Hello! मैं Flash Chat हूँ। अपना सवाल लिखो।",
       sender: "ai",
     },
   ])
@@ -31,7 +31,7 @@ export function Chat() {
     setLoading(true)
 
     try {
-      const response = await fetch("/app/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -40,6 +40,10 @@ export function Chat() {
           message: text,
         }),
       })
+
+      if (!response.ok) {
+        throw new Error("API error")
+      }
 
       const data = await response.json()
 
@@ -58,9 +62,9 @@ export function Chat() {
           sender: "ai",
         },
       ])
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   return (
