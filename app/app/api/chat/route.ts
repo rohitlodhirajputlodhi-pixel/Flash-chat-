@@ -1,116 +1,47 @@
-import { GoogleGenerativeAI, type Part } from "@google/generative-ai"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export const maxDuration = 30
 
-type ChatImage = {
-  url: string
-  mimeType: string
-}
+export async function POST(request: Request) {
+  try {
+    const { message } = await request.json()
 
-type ChatMessage = {
-  role: "user" | "assistant"
-  content: string
-  images?: ChatImage[]
-}
+    const apiKey = process.env.GEMINI_API_KEY
 
-const SYSTEM_INSTRUCTION =
-  "You are a fast, concise, and helpful AI assistant. Answer clearly and get to the point. When an image is provided, describe or reason about it as needed."
+    if (!apiKey) {
+      return Response.json(
+        {
+          reply: "Gemini API key नहीं मिली।",
+        },
+        {
+          status: 500,
+        },
+      )
+    }
 
-function toParts(message: ChatMessage): Part[] {
-  const parts: Part[] = []
+    const genAI = new GoogleGenerativeAI(apiKey)
 
-  for (const image of message.images ?? []) {
-    const base64 = image.url.includes(",")
-      ? image.url.split(",")[1]
-      : image.url
-
-    parts.push({
-      inlineData: {
-        data: base64,
-        mimeType: image.mimeType,
-      },
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
     })
-  }
 
-  if (message.content) {
-    parts.push({ text: message.content })
-  }
+    const result = await model.generateContent(message)
 
-  if (parts.length === 0) {
-    parts.push({ text: "" })
-  }
+    const reply = result.response.text()
 
-  return parts
-}
+    return Response.json({
+      reply,
+    })
+  } catch (error) {
+    console.error("Gemini error:", error)
 
-export async function POST(req: Request) {
-  const apiKey = process.env.GEMINI_API_KEY
-
-  if (!apiKey) {
-    return new Response(
-      "Missing GEMINI_API_KEY. Add your Google Gemini API key to the environment variables.",
-      { status: 500 },
+    return Response.json(
+      {
+        reply: "अभी AI जवाब नहीं दे पाया।",
+      },
+      {
+        status: 500,
+      },
     )
   }
-
-  const { messages }: { messages: ChatMessage[] } = await req.json()
-
-  const genAI = new GoogleGenerativeAI(apiKey)
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-flash-latest",
-    systemInstruction: SYSTEM_INSTRUCTION,
-  })
-
-  const history = messages.slice(0, -1).map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: toParts(m),
-  }))
-
-  const latest = messages[messages.length - 1]
-
-  const latestParts = latest
-    ? toParts(latest)
-    : [{ text: "" }]
-
-  const chat = model.startChat({ history })
-
-  const encoder = new TextEncoder()
-
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        const result =
-          await chat.sendMessageStream(latestParts)
-
-        for await (const chunk of result.stream) {
-          const text = chunk.text()
-
-          if (text) {
-            controller.enqueue(
-              encoder.encode(text)
-            )
-          }
-        }
-      } catch (err) {
-        console.log(
-          "[v0] Gemini stream error:",
-          err
-        )
-
-        controller.error(err)
-        return
-      }
-
-      controller.close()
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type":
-        "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-    },
-  })
 }
